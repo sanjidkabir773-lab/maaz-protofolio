@@ -1,323 +1,354 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sanjid-Racing - Endless Car Racing Game</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        canvas {
-            border: 2px solid #fff;
-            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
-            cursor: pointer;
-        }
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px #000;
-            z-index: 10;
-        }
-        #gameOver {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.9);
-            color: white;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            display: none;
-            z-index: 20;
-        }
-        #gameOver h2 {
-            font-size: 36px;
-            margin: 0 0 20px;
-        }
-        #gameOver button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 20px;
-            border-radius: 10px;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-        #instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            font-size: 16px;
-            text-shadow: 1px 1px 2px #000;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sanjid Racing - Endless Traffic Dodger</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      font-family: Arial, sans-serif;
+      color: #fff;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+    }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 20;
+      font-size: 28px;
+      text-shadow: 2px 2px 5px #000;
+      pointer-events: none;
+    }
+    #high-score {
+      top: 50px;
+      font-size: 22px;
+    }
+    #game-over {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      color: #ff4444;
+      text-shadow: 4px 4px 10px #000;
+      opacity: 0;
+      transition: opacity 1s;
+      pointer-events: none;
+    }
+    #game-over.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    button {
+      margin-top: 30px;
+      padding: 18px 50px;
+      font-size: 32px;
+      background: #e74c3c;
+      border: none;
+      color: white;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 6px #c0392b;
+    }
+    button:active {
+      transform: translateY(3px);
+      box-shadow: 0 3px #c0392b;
+    }
+    #pause-msg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 80px;
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+    #pause-msg.show {
+      opacity: 0.9;
+    }
+  </style>
 </head>
 <body>
-    <div id="ui">
-        <div>Score: <span id="score">0</span></div>
-        <div>Speed: <span id="speed">0</span></div>
-    </div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="instructions">
-        Use ← → Arrow Keys or A/D to steer | SPACE to boost | R to restart
-    </div>
-    <div id="gameOver">
-        <h2>Game Over!</h2>
-        <p>Final Score: <span id="finalScore">0</span></p>
-        <p>High Score: <span id="highScore">0</span></p>
-        <button onclick="restartGame()">Play Again</button>
-    </div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('score');
-        const speedEl = document.getElementById('speed');
-        const gameOverEl = document.getElementById('gameOver');
-        const finalScoreEl = document.getElementById('finalScore');
-        const highScoreEl = document.getElementById('highScore');
+<div id="ui">Score: <span id="score">0</span></div>
+<div id="ui" class="high-score" id="high-score">High Score: <span id="high">0</span></div>
 
-        // Game state
-        let gameRunning = true;
-        let score = 0;
-        let highScore = localStorage.getItem('sanjidRacingHighScore') || 0;
-        let speed = 2;
-        let frame = 0;
+<div id="pause-msg">PAUSED</div>
 
-        // Player car
-        const player = {
-            x: canvas.width / 2 - 25,
-            y: canvas.height - 150,
-            width: 50,
-            height: 100,
-            lane: 0, // -1 left, 0 center, 1 right
-            speed: 0
-        };
+<div id="game-over">
+  <div>GAME OVER</div>
+  <div style="font-size:40px; margin:30px 0;">Score: <span id="final-score">0</span></div>
+  <button onclick="location.reload()">Play Again</button>
+</div>
 
-        const lanes = [-150, -50, 50]; // Lane positions relative to center
+<canvas id="c"></canvas>
 
-        // Traffic cars
-        let traffic = [];
+<script>
+// === Sanjid Racing - Enhanced Endless Traffic Racer ===
 
-        // Road segments for pseudo-3D
-        const roadWidth = 800;
-        const segmentLength = 200; // Height of each segment
-        let roadSegments = [];
-        for (let i = 0; i < 300; i++) {
-            roadSegments.push({
-                curve: 0,
-                y: 0,
-                color: i % 2 ? '#333' : '#555'
-            });
-        }
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const highEl = document.getElementById('high');
+const finalEl = document.getElementById('final-score');
+const gameOverEl = document.getElementById('game-over');
+const pauseMsg = document.getElementById('pause-msg');
 
-        // Keys
-        const keys = {};
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-        // Event listeners
-        window.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
-            if (e.key === ' ') keys[' '] = true;
-        });
-        window.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
-            if (e.key === ' ') keys[' '] = false;
-        });
+let score = 0;
+let highScore = localStorage.getItem('sanjidRacingHigh') || 0;
+highEl.textContent = highScore;
+let gameRunning = true;
+let paused = false;
+let speed = 5;
+let player = { x: W/2 - 40, y: H - 160, w: 80, h: 140, color: '#e74c3c' };
+let keys = {};
+let obstacles = [];
+let coins = [];
+let lastSpawn = 0;
+let spawnInterval = 900; // ms
+let roadOffset = 0;
 
-        canvas.addEventListener('touchstart', handleTouch);
-        canvas.addEventListener('touchmove', handleTouch);
+// Simple sound (beep)
+const beep = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=");
+function playBeep() { beep.currentTime = 0; beep.play().catch(()=>{}); }
+function playCoin() {
+  const coinSound = new Audio("data:audio/wav;base64,UklGRl4AAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"+ // very short coin-like tone
+  "AAAAA=");
+  coinSound.currentTime = 0; coinSound.play().catch(()=>{});
+}
 
-        function handleTouch(e) {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            const x = touch.clientX - rect.left;
-            if (x < canvas.width / 3) {
-                player.lane = -1;
-            } else if (x > 2 * canvas.width / 3) {
-                player.lane = 1;
-            } else {
-                player.lane = 0;
-            }
-        }
+// Controls
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === 'p') {
+    paused = !paused;
+    pauseMsg.classList.toggle('show', paused);
+  }
+});
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-        function updatePlayer() {
-            if (keys['a'] || keys['arrowleft']) {
-                player.lane = Math.max(-1, player.lane - 0.2);
-            }
-            if (keys['d'] || keys['arrowright']) {
-                player.lane = Math.min(1, player.lane + 0.2);
-            }
-            if (keys[' '] && player.speed < 5) {
-                player.speed += 0.1; // Boost
-            }
-            player.x = canvas.width / 2 + lanes[Math.round((player.lane + 1))]; // Snap to lane
-            speed = 2 + player.speed * 2;
-        }
+// Touch (swipe left/right)
+let touchStartX = 0;
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  touchStartX = e.touches[0].clientX;
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const dx = e.touches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 30) {
+    player.x += dx > 0 ? 80 : -80;
+    touchStartX = e.touches[0].clientX;
+  }
+});
 
-        function spawnTraffic() {
-            if (Math.random() < 0.02 + speed / 1000) {
-                const lane = Math.floor(Math.random() * 3) - 1;
-                traffic.push({
-                    x: canvas.width / 2 + lanes[Math.round((lane + 1))],
-                    y: -100,
-                    width: 50,
-                    height: 100,
-                    speed: speed * 1.2 + Math.random() * 2
-                });
-            }
-        }
+function clampPlayer() {
+  if (player.x < 40) player.x = 40;
+  if (player.x > W - 120) player.x = W - 120;
+}
 
-        function updateTraffic() {
-            traffic = traffic.filter(car => {
-                car.y += car.speed;
-                return car.y < canvas.height;
-            });
-        }
+function spawnObstacle() {
+  const lanes = 5;
+  const laneW = W / lanes;
+  const lane = Math.floor(Math.random() * lanes);
+  const color = ['#c0392b','#e67e22','#f39c12','#27ae60','#8e44ad'][Math.floor(Math.random()*5)];
+  obstacles.push({
+    x: lane * laneW + laneW/2 - 40,
+    y: -160,
+    w: 80,
+    h: 140,
+    color
+  });
+}
 
-        function checkCollisions() {
-            traffic.forEach(car => {
-                if (player.x < car.x + car.width &&
-                    player.x + player.width > car.x &&
-                    player.y < car.y + car.height &&
-                    player.y + player.height > car.y) {
-                    gameOver();
-                }
-            });
-        }
+function spawnCoin() {
+  if (Math.random() < 0.4) { // ~40% chance
+    const lanes = 5;
+    const laneW = W / lanes;
+    const lane = Math.floor(Math.random() * lanes);
+    coins.push({
+      x: lane * laneW + laneW/2 - 20,
+      y: -50,
+      r: 20
+    });
+  }
+}
 
-        function updateRoad() {
-            roadSegments.forEach(segment => {
-                segment.y += speed;
-                if (segment.y > canvas.height) {
-                    segment.y = -segmentLength;
-                    segment.color = frame % 2 ? '#333' : '#555';
-                }
-            });
-        }
+function update() {
+  if (!gameRunning || paused) return;
 
-        function drawRoad() {
-            ctx.save();
-            ctx.translate(0, 0);
-            for (let i = 0; i < roadSegments.length; i++) {
-                const segment = roadSegments[i];
-                const bottomWidth = (canvas.width * (1 - (segment.y / canvas.height) * 0.8)) / 2;
-                const topWidth = bottomWidth * 0.8;
-                const topY = Math.max(0, segment.y - segmentLength);
-                const bottomY = segment.y;
+  // Player move
+  if (keys['a'] || keys['arrowleft'])  player.x -= 14;
+  if (keys['d'] || keys['arrowright']) player.x += 14;
+  if (keys['w'] || keys['arrowup'])    speed = Math.min(speed + 0.12, 18);
+  if (keys['s'] || keys['arrowdown'])  speed = Math.max(speed - 0.15, 3);
 
-                // Road
-                ctx.fillStyle = segment.color;
-                ctx.beginPath();
-                ctx.moveTo(canvas.width / 2 - bottomWidth, bottomY);
-                ctx.lineTo(canvas.width / 2 + bottomWidth, bottomY);
-                ctx.lineTo(canvas.width / 2 + topWidth, topY);
-                ctx.lineTo(canvas.width / 2 - topWidth, topY);
-                ctx.closePath();
-                ctx.fill();
+  clampPlayer();
 
-                // Road lines
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 5;
-                ctx.setLineDash([20, 20]);
-                ctx.beginPath();
-                ctx.moveTo(canvas.width / 2, bottomY);
-                ctx.lineTo(canvas.width / 2, topY);
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
+  // Spawning
+  lastSpawn += 16;
+  if (lastSpawn > spawnInterval) {
+    spawnObstacle();
+    spawnCoin();
+    lastSpawn = 0;
+    spawnInterval = Math.max(450, spawnInterval - 10);
+    speed += 0.08;
+  }
 
-        function drawPlayer() {
-            ctx.fillStyle = '#FF4500'; // Orange supercar
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            // Wheels
-            ctx.fillStyle = '#000';
-            ctx.fillRect(player.x + 5, player.y + 10, 10, 20);
-            ctx.fillRect(player.x + 35, player.y + 10, 10, 20);
-            ctx.fillRect(player.x + 5, player.y + 70, 10, 20);
-            ctx.fillRect(player.x + 35, player.y + 70, 10, 20);
-        }
+  // Move road
+  roadOffset += speed * 0.8;
+  if (roadOffset > 80) roadOffset = 0;
 
-        function drawTraffic() {
-            traffic.forEach(car => {
-                ctx.fillStyle = `hsl(${Math.random()*360}, 70%, 50%)`; // Random colors
-                ctx.fillRect(car.x, car.y, car.width, car.height);
-                // Wheels
-                ctx.fillStyle = '#000';
-                ctx.fillRect(car.x + 5, car.y + 10, 8, 15);
-                ctx.fillRect(car.x + 37, car.y + 10, 8, 15);
-                ctx.fillRect(car.x + 5, car.y + 70, 8, 15);
-                ctx.fillRect(car.x + 37, car.y + 70, 8, 15);
-            });
-        }
+  // Move & check obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    let o = obstacles[i];
+    o.y += speed;
 
-        function gameLoop() {
-            if (!gameRunning) return;
+    // Collision with player
+    if (
+      player.x < o.x + o.w &&
+      player.x + player.w > o.x &&
+      player.y < o.y + o.h &&
+      player.y + player.h > o.y
+    ) {
+      gameRunning = false;
+      finalEl.textContent = score;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('sanjidRacingHigh', highScore);
+        highEl.textContent = highScore;
+      }
+      gameOverEl.classList.add('show');
+    }
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Remove off-screen + score
+    if (o.y > H + 200) {
+      obstacles.splice(i, 1);
+      score += 20;
+      scoreEl.textContent = score;
+      playBeep();
+    }
+  }
 
-            updatePlayer();
-            spawnTraffic();
-            updateTraffic();
-            updateRoad();
-            checkCollisions();
+  // Coins
+  for (let i = coins.length - 1; i >= 0; i--) {
+    let c = coins[i];
+    c.y += speed * 0.9;
 
-            drawRoad();
-            drawTraffic();
-            drawPlayer();
+    // Collect coin
+    const dx = player.x + player.w/2 - c.x;
+    const dy = player.y + player.h/2 - c.y;
+    if (Math.sqrt(dx*dx + dy*dy) < 60) {
+      coins.splice(i, 1);
+      score += 100;
+      scoreEl.textContent = score;
+      playCoin();
+    }
 
-            score += speed;
-            frame++;
-            speed = Math.min(10, speed + 0.001);
+    if (c.y > H + 50) coins.splice(i, 1);
+  }
 
-            scoreEl.textContent = Math.floor(score);
-            speedEl.textContent = Math.floor(speed);
+  // Difficulty
+  if (score > 1000) speed = Math.min(22, speed + 0.01);
+}
 
-            requestAnimationFrame(gameLoop);
-        }
+function drawRoad() {
+  // Grass sides
+  ctx.fillStyle = '#1a3c34';
+  ctx.fillRect(0, 0, W, H);
 
-        function gameOver() {
-            gameRunning = false;
-            finalScoreEl.textContent = Math.floor(score);
-            highScoreEl.textContent = highScore;
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('sanjidRacingHighScore', highScore);
-            }
-            gameOverEl.style.display = 'block';
-        }
+  // Main road
+  ctx.fillStyle = '#333';
+  ctx.fillRect(W*0.1, 0, W*0.8, H);
 
-        function restartGame() {
-            gameRunning = true;
-            score = 0;
-            speed = 2;
-            frame = 0;
-            traffic = [];
-            player.lane = 0;
-            player.speed = 0;
-            gameOverEl.style.display = 'none';
-            gameLoop();
-        }
+  // White dashed lines
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 10;
+  ctx.setLineDash([60, 60]);
+  for (let i = 1; i < 5; i++) {
+    let x = W * 0.1 + (W*0.8 / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(x, roadOffset - 120);
+    ctx.lineTo(x, H + 120);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
 
-        // Start game
-        gameLoop();
-    </script>
+function drawCar(x, y, w, h, col) {
+  // Body
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, w, h);
+  // Top part
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x+12, y+30, w-24, h-80);
+  // Window
+  ctx.fillStyle = '#7f8c8d';
+  ctx.fillRect(x+18, y+40, w-36, 40);
+  // Lights
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillRect(x+10, y+h-30, 20, 20);
+  ctx.fillRect(x+w-30, y+h-30, 20, 20);
+  // Wheels
+  ctx.fillStyle = 'black';
+  ctx.fillRect(x-8, y+20, 16, h-40);
+  ctx.fillRect(x+w-8, y+20, 16, h-40);
+}
+
+function drawCoin(x, y, r) {
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#d4ac0d';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('$', x, y+8);
+}
+
+function render() {
+  drawRoad();
+
+  // Player car
+  drawCar(player.x, player.y, player.w, player.h, player.color);
+
+  // Obstacles
+  obstacles.forEach(o => drawCar(o.x, o.y, o.w, o.h, o.color));
+
+  // Coins
+  coins.forEach(c => drawCoin(c.x, c.y, c.r));
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
 </body>
 </html>
